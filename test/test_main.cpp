@@ -1,4 +1,6 @@
 #define CATCH_CONFIG_RUNNER
+#define CATCH_CONFIG_WCHAR
+#define UNICODE
 #include <catch2/catch.hpp>
 #include <catch2/catch_reporter_sonarqube.hpp>
 
@@ -41,12 +43,16 @@ bool has_env(const char* key) noexcept {
 }
 
 auto make_logger(const char* name, FILE* fout) noexcept(false) {
+    if (fout == stdout || fout == stderr)
+        return spdlog::stdout_logger_st(name);
     using mutex_t = spdlog::details::console_nullmutex;
     using sink_t = spdlog::sinks::stdout_sink_base<mutex_t>;
     return std::make_shared<spdlog::logger>(name, std::make_shared<sink_t>(fout));
 }
 
-class test_suite_context_t final {
+struct test_suite_context_t final {
+    std::vector<std::wstring_view> envs{};
+
   public:
     test_suite_context_t() {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
@@ -60,9 +66,8 @@ class test_suite_context_t final {
     void use_environment(wchar_t* envp[]) {
         if (envp == nullptr)
             return;
-        spdlog::debug("envs:");
         for (wchar_t** ptr = envp; (*ptr) != nullptr; ++ptr)
-            spdlog::debug(" - {}", winrt::to_string(std::wstring_view{*ptr}));
+            envs.emplace_back(*ptr);
     }
 
     void test_activation_factory() noexcept {
@@ -85,15 +90,20 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
     context.use_environment(envp);
 
+    Catch::Session session{};
+    session.applyCommandLine(argc, argv);
+    return session.run();
+}
+
+TEST_CASE("Report Environment") {
     spdlog::info("C++/WinRT:");
     spdlog::info("  version: {:s}", CPPWINRT_VERSION); // WINRT_version
     spdlog::info("Windows Media Foundation:");
     spdlog::info("  SDK: {:X}", MF_SDK_VERSION);
     spdlog::info("  API: {:X}", MF_API_VERSION);
-
-    Catch::Session session{};
-    session.applyCommandLine(argc, argv);
-    return session.run();
+    spdlog::info("envs:");
+    for (std::wstring_view view : context.envs)
+        spdlog::debug(" - {}", winrt::to_string(view));
 }
 
 using std::experimental::coroutine_handle;

@@ -13,7 +13,7 @@ schedules:
 
 variables:
   - name: vcpkg.commit
-    value: "b86c0c35b88e2bf3557ff49dc831689c2f085090" # mainstream 2022.02.23
+    value: "14e7bb4ae24616ec54ff6b2f6ef4e8659434ea44" # mainstream 2022.05.10
   - name: vcpkg.feature.flags
     value: "registries,binarycaching"
   - name: vcpkg.default.binary.cache
@@ -22,7 +22,7 @@ variables:
 jobs:
   - job: Build
     pool:
-      vmImage: "windows-2022"
+      vmImage: "windows-2022" # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
     strategy:
       matrix:
         release_x64:
@@ -45,7 +45,7 @@ jobs:
       #   displayName: "Download: test MP4 files"
       - task: Cache@2
         inputs:
-          key: "2022-02 | vcpkg | $(build.platform)"
+          key: "2022-07 | vcpkg | $(build.platform)"
           path: $(vcpkg.default.binary.cache)
       - task: run-vcpkg@0
         displayName: "Install: Vcpkg"
@@ -84,16 +84,16 @@ jobs:
   - job: Analysis
     dependsOn: Build
     pool:
-      vmImage: "windows-2022" # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+      vmImage: "windows-2022"
     steps:
       - task: Cache@2
         inputs:
-          key: "2022-02 | vcpkg | x64"
+          key: "2022-07 | vcpkg | x64"
           path: $(vcpkg.default.binary.cache)
       - task: Cache@2
         inputs:
-          key: "2022-02 | sonarqube"
-          path: $(Pipeline.Workspace)/.sonarqube
+          key: "2022-08 | sonarqube"
+          path: "C:/Users/VssAdministrator/.sonar" # $(Pipeline.Workspace)/.sonarqube
       - task: run-vcpkg@0
         displayName: "Install: Vcpkg"
         inputs:
@@ -105,26 +105,15 @@ jobs:
         inputs:
           SonarCloud: "luncliff-sonarcloud"
           organization: "luncliff-github"
-          scannerMode: "MSBuild"
           projectKey: "luncliff-media"
-          projectName: "luncliff-media"
-          projectVersion: "0.1.3"
-          extraProperties: |
-            sonar.language=c++
-            sonar.cpp.std=c++20
-            sonar.sourceEncoding=UTF-8
-            sonar.sources=src/,test/
-            sonar.exclusions=scripts/
-            sonar.verbose=true
-            sonar.cfamily.threads=4
-            sonar.cfamily.build-wrapper-output=bw-output
-            sonar.testExecutionReportPaths=build-x64-windows/sonar-test-report.xml
+          scannerMode: "CLI"
+          configMode: "file"
       # https://github.com/SonarSource/sonarcloud_example_cpp-cmake-windows-otherci
-      - powershell: |
-          Invoke-WebRequest -Uri "https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip" -OutFile build-wrapper-win.zip
-          Expand-Archive -Path "build-wrapper-win.zip" -DestinationPath .
-          Move-Item -Path "./build-wrapper-win-x86/build-wrapper-win-x86-64.exe" -Destination .
-        displayName: "Download: Sonar Build Wrapper"
+      # https://tomaxworthy.medium.com/setting-up-sonar-cloud-with-azure-devops-pipelines-for-net-core-98700a5be8cc
+      - task: PowerShell@2
+        inputs:
+          filePath: "scripts/setup-sonar-build-wrapper.ps1"
+        displayName: "Setup: Sonar Build Wrapper"
       - task: CMake@1
         displayName: "CMake: Configure/Generate"
         inputs:
@@ -136,12 +125,14 @@ jobs:
       - powershell: |
           $env:Path="C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Msbuild\Current\Bin;$env:Path"
           MSBuild --version
-          ./build-wrapper-win-x86-64.exe --out-dir "$(Build.SourcesDirectory)/../bw-output" `
+          ./build-wrapper-win-x86-64.exe --out-dir "$(Build.SourcesDirectory)/bw-output" `
             MSBuild build-x64-windows/learning-media-foundation.sln `
             /t:rebuild /p:platform="x64" /p:configuration="Debug"
         displayName: "Run Sonar Build Wrapper"
       # https://docs.sonarqube.org/latest/analysis/generic-test/
-      - powershell: ./media_test_suite.exe --reporter=sonarqube --out "$(Build.SourcesDirectory)/build-x64-windows/sonar-test-report.xml"
+      - powershell: |
+          New-Item -Type Directory -Path "$(Build.SourcesDirectory)/install" -Force
+          ./media_test_suite.exe --reporter=sonarqube --out "$(Build.SourcesDirectory)/install/sonar-test-report.xml"
         workingDirectory: build-x64-windows/Debug
         displayName: "Run Tests"
       # - task: PowerShell@2
