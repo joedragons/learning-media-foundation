@@ -105,6 +105,7 @@ jobs:
         inputs:
           SonarCloud: "luncliff-sonarcloud"
           organization: "luncliff-github"
+          projectKey: luncliff-media
           scannerMode: "MSBuild"
           configMode: "file"
       # https://github.com/SonarSource/sonarcloud_example_cpp-cmake-windows-otherci
@@ -129,7 +130,9 @@ jobs:
             /t:rebuild /p:platform="x64" /p:configuration="Debug"
         displayName: "Run Sonar Build Wrapper"
       # https://docs.sonarqube.org/latest/analysis/generic-test/
-      - powershell: ./media_test_suite.exe --reporter=sonarqube --out "$(Build.SourcesDirectory)/build-x64-windows/sonar-test-report.xml"
+      - powershell: |
+          New-Item -Type Directory -Path "install" -Force
+          ./media_test_suite.exe --reporter=sonarqube --out "$(Build.SourcesDirectory)/install/sonar-test-report.xml"
         workingDirectory: build-x64-windows/Debug
         displayName: "Run Tests"
       # - task: PowerShell@2
