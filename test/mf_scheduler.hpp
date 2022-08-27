@@ -12,7 +12,11 @@ class mf_scheduler_t final {
 
   public:
     mf_scheduler_t() noexcept(false);
-    ~mf_scheduler_t();
+    mf_scheduler_t(const mf_scheduler_t&) noexcept(false);
+    mf_scheduler_t(mf_scheduler_t&&) = delete;
+    mf_scheduler_t& operator=(const mf_scheduler_t&) = delete;
+    mf_scheduler_t& operator=(mf_scheduler_t&&) = delete;
+    ~mf_scheduler_t() noexcept;
 
     DWORD handle() const noexcept;
 

@@ -11,7 +11,11 @@ mf_scheduler_t::mf_scheduler_t() noexcept(false) {
         winrt::throw_hresult(hr);
 }
 
-mf_scheduler_t::~mf_scheduler_t() {
+mf_scheduler_t::mf_scheduler_t(const mf_scheduler_t& rhs) noexcept(false) : queue{rhs.queue} {
+    winrt::check_hresult(MFLockWorkQueue(queue));
+}
+
+mf_scheduler_t::~mf_scheduler_t() noexcept {
     MFUnlockWorkQueue(queue);
 }
 
