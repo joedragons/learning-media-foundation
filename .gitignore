@@ -3,6 +3,7 @@ CMakeUserPresets.json
 windows-classic-samples
 windows-universal-samples
 externals
+reports
 
 install
 package-lock.json

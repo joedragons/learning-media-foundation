@@ -5,22 +5,26 @@
     https://docs.microsoft.com/en-us/visualstudio/test/using-code-coverage-to-determine-how-much-code-is-being-tested
 #>
 using namespace System
-
+param
+(
+    [String]$ReportPath = "reports"
+)
 # Codecoverage.exe (Azure Pipelines)
-env:Path = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Team Tools\Dynamic Code Coverage Tools;$env:Path"
+$env:Path = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Team Tools\Dynamic Code Coverage Tools;$env:Path"
 
 # Acquire coverage file and generate temporary coverage file
-$coverage_file = Get-ChildItem -Recurse "*.coverage";
-if ($null -eq $coverage_file) {
+$coverage_files = Get-ChildItem -Recurse "$ReportPath/**/*.coverage";
+if ($null -eq $coverage_files) {
     Write-Output "coverage file not found"
     return
 }
-Write-Output $coverage_file
+$coverage_file = $coverage_files[0] 
+# Write-Output $coverage_file
 
-$temp_coverage_xml_filepath = "./TestResults/coverage-report.xml"
-CodeCoverage analyze /verbose /output:$temp_coverage_xml_filepath $coverage_file
+$coverage_xml_file = "$ReportPath/coverage-report.coveragexml"
+CodeCoverage analyze /output:$coverage_xml_file $coverage_file
 
-Get-ChildItem "./TestResults"
+# Get-ChildItem "./TestResults"
 
 # Filter lines with invalid line number 
 #   and Create a new coverage xml

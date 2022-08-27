@@ -1,27 +1,16 @@
-cmake_minimum_required(VERSION 3.20)
-project(learning-media-foundation VERSION 0.2 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.22)
+project(learning-media-foundation VERSION 0.3 LANGUAGES CXX)
 
-option(BUILD_SHARED_LIBS "https://cmake.org/cmake/help/latest/variable/BUILD_SHARED_LIBS.html" ON)
-option(BUILD_TESTING "https://cmake.org/cmake/help/latest/module/CTest.html" ON)
+# option(BUILD_SHARED_LIBS "https://cmake.org/cmake/help/latest/variable/BUILD_SHARED_LIBS.html" ON)
+option(BUILD_TESTING "Build test program" OFF) # include(CTest)
 
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_SUPPRESS_REGENERATION true)
 set(CMAKE_INSTALL_UCRT_LIBRARIES true)
 string(COMPARE EQUAL ${CMAKE_BUILD_TYPE} Debug CMAKE_INSTALL_DEBUG_LIBRARIES)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# see https://github.com/microsoft/onnxruntime/tree/master/cmake
-include(winml_sdk_helpers)
-include(winml_cppwinrt)
-get_sdk(sdk_folder sdk_version)
-get_sdk_include_folder(${sdk_folder} ${sdk_version} sdk_include_folder)
-message(STATUS "Windows SDK")
-message(STATUS "  ${sdk_version}") # expect CMAKE_SYSTEM_VERSION
-message(STATUS "  ${sdk_folder}")
-message(STATUS "  ${sdk_include_folder}")
-
-include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
+include(InstallRequiredSystemLibraries)
 include(CheckIncludeFileCXX)
 include(CheckCXXCompilerFlag)
 
@@ -30,6 +19,13 @@ check_include_file_cxx("d3d11_4.h" found_d3d11)
 check_include_file_cxx("dxgi1_6.h" found_dxgi)
 check_include_file_cxx("mfapi.h"   found_mfapi)
 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+# see https://github.com/microsoft/onnxruntime/tree/master/cmake
+include(winml_sdk_helpers)
+include(winml_cppwinrt)
+get_sdk(sdk_folder sdk_version)
+get_sdk_include_folder(${sdk_folder} ${sdk_version} sdk_include_folder)
+
 find_package(Git REQUIRED)
 execute_process(
     COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
@@ -37,147 +33,85 @@ execute_process(
     OUTPUT_VARIABLE GIT_COMMIT_ID
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-message(STATUS "Using commit: ${GIT_COMMIT_ID}")
 
+find_path(VSTEST_INCLUDE_DIR NAMES "CppUnitTest.h" PATHS "${CMAKE_GENERATOR_INSTANCE}/VC/Auxiliary/VS/UnitTest/include" REQUIRED)
+find_package(Threads REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(directx-headers CONFIG REQUIRED)
-find_package(directxtk CONFIG REQUIRED)
-find_package(directxtex CONFIG REQUIRED)
-find_package(directxmath CONFIG REQUIRED)
 
-target_cppwinrt(media_test_api_codegen
-    ${PROJECT_SOURCE_DIR}/src/MessageHolder.idl MessageHolder
-    codegen "${sdk_folder}" "${sdk_version}"
-    codegen "" true ""
-)
+message(STATUS "Using system: ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "Using compiler: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "Visual Studio")
+message(STATUS "  ${CMAKE_GENERATOR_INSTANCE}")
+find_path(VSTEST_INCLUDE_DIR NAMES "CppUnitTest.h" PATHS "${CMAKE_GENERATOR_INSTANCE}/VC/Auxiliary/VS/UnitTest/include" REQUIRED)
+message(STATUS "  ${VSTEST_INCLUDE_DIR}")
 
-add_library(media_test_api SHARED
-    # src/MessageHolder.idl
-    src/WinRTComponent.def
-    src/WinRTComponent.MessageHolder.h
-    src/WinRTComponent.MessageHolder.cpp
-    src/dllmain.cpp
-)
-add_dependencies(media_test_api media_test_api_codegen)
-
-set_target_properties(media_test_api
-PROPERTIES
-    WINDOWS_EXPORT_ALL_SYMBOLS true
-)
-
-target_include_directories(media_test_api
-PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/media_test_api_codegen/comp_generated>
-PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/media_test_api_codegen
-    ${CMAKE_CURRENT_BINARY_DIR}/media_test_api_codegen/comp_generated/WinRTComponent
-    test
-)
-
-target_compile_definitions(media_test_api
-PRIVATE
-    WIN32_LEAN_AND_MEAN
-    _WINRT_DLL _WINDLL
-)
-
-set_source_files_properties(src/dllmain.cpp
-PROPERTIES
-    COMPILE_DEFINITIONS "GIT_COMMIT_ID=${GIT_COMMIT_ID}"
-)
-
-target_compile_options(media_test_api
-PRIVATE
-    /W4 /bigobj /Zc:__cplusplus /await # /std:c++17
-)
-
-target_link_libraries(media_test_api
-PRIVATE
-    WindowsApp # C++/WinRT
-)
-
-add_executable(media_test_suite
-    test/test_main.cpp
-    test/test_dxva.cpp
+list(APPEND hdrs
+    test/mf_scheduler.hpp
     test/mf_transform.hpp
+)
+
+add_library(media0 SHARED
+    ${hdrs}
+    test/mf_scheduler.cpp
     test/mf_transform.cpp
-    test/test_mf_transform.cpp
-    test/test_mf_threading.cpp
-    test/string.cpp
+    test/test_main.cpp
+    test/test_mf_scheduler.cpp
 )
 
-target_compile_definitions(media_test_suite
-PRIVATE
-    WIN32_LEAN_AND_MEAN
-)
-
-target_link_libraries(media_test_suite
-PRIVATE
-    media_test_api
-    WindowsApp # C++/WinRT
-    mf mfplat mfplay mfreadwrite mfuuid wmcodecdspuuid # Media Foundation SDK
-    shlwapi comctl32 # Windows COM
-    strmiids dxva2 evr d3d11 dxguid dxgi # DXVA
-    fmt::fmt-header-only spdlog::spdlog_header_only
-    Microsoft::DirectX-Headers
-    Microsoft::DirectXTex
-    Microsoft::DirectXTK
-    Microsoft::DirectXMath
-)
-
-target_compile_options(media_test_suite
-PRIVATE
-    /wd4819 # codepage
-    /wd4651 # macro in precompiled header
-)
-
-target_compile_options(media_test_suite
-PRIVATE
-    /utf-8 /W4 /bigobj /Zc:__cplusplus /await # /std:c++17
-)
-
-target_link_options(media_test_suite
-PRIVATE
-    /ERRORREPORT:SEND
-)
-
-set_source_files_properties(test/test_main.cpp
+# <VCProjectVersion>17.0</VCProjectVersion>
+# <ProjectSubType>NativeUnitTestProject</ProjectSubType>
+set_target_properties(media0
 PROPERTIES
-    COMPILE_DEFINITIONS "${BUILD_COMPILE_DEFINITIONS}"
+    CXX_STANDARD 17
+    WINDOWS_EXPORT_ALL_SYMBOLS True
+    VS_GLOBAL_ProjectSubType NativeUnitTestProject
+    VS_GLOBAL_VCProjectVersion 17.0
+    PUBLIC_HEADER "${hdrs}"
 )
 
-install(TARGETS media_test_suite
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
+target_include_directories(media0
+PRIVATE
+    ${VSTEST_INCLUDE_DIR}
 )
+
+target_compile_definitions(media0
+PRIVATE
+    WIN32_LEAN_AND_MEAN NOMINMAX # NOGDI
+)
+
+target_compile_options(media0
+PRIVATE
+    /Zc:__cplusplus
+    /W4
+    /await
+)
+
+target_link_libraries(media0
+PRIVATE
+    WindowsApp mswsock ws2_32
+    mf mfplat mfplay mfreadwrite mfuuid wmcodecdspuuid # Media Foundation SDK
+    fmt::fmt-header-only spdlog::spdlog_header_only
+)
+
+target_link_options(media0
+PRIVATE
+    /subsystem:Windows
+)
+
+install(TARGETS media0
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(FILES $<TARGET_PDB_FILE:media0> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_VENDOR "luncliff@gmail.com")
-set(CPACK_PACKAGE_DESCRIPTION "https://github.com/luncliff/learning-media-foundation")
+set(CPACK_PACKAGE_DESCRIPTION "https://github.com/luncliff/media0")
 set(CPACK_RESOURCE_FILE_README ${PROJECT_SOURCE_DIR}/readme.md)
+set(CPACK_RESOURCE_FILE_LICENSE ${PROJECT_SOURCE_DIR}/LICENSE)
 set(CPACK_GENERATOR "ZIP")
 include(CPack)
 
-find_package(glfw3 CONFIG REQUIRED)
-find_package(Catch2 2.11 CONFIG REQUIRED)
-
-# target_include_directories(media_test_suite
-# PRIVATE
-#     $<$<CONFIG:Debug>:${CMAKE_CURRENT_BINARY_DIR}/media.dir/Debug>
-#     $<$<CONFIG:Release>:${CMAKE_CURRENT_BINARY_DIR}/media.dir/Release>
-#     $<$<CONFIG:RelWithDebInfo>:${CMAKE_CURRENT_BINARY_DIR}/media.dir/RelWithDebInfo>
-#     $<$<CONFIG:MinSizeRel>:${CMAKE_CURRENT_BINARY_DIR}/media.dir/MinSizeRel>
-# )
-
-target_link_libraries(media_test_suite
-PRIVATE
-    Catch2::Catch2 glfw
-)
-
-get_filename_component(ASSET_DIR "${PROJECT_SOURCE_DIR}/assets" ABSOLUTE)
-target_compile_definitions(media_test_suite
-PRIVATE
-    ASSET_DIR="${ASSET_DIR}"
-    CATCH_CONFIG_FAST_COMPILE
-    CATCH_CONFIG_WINDOWS_CRTDBG
-)

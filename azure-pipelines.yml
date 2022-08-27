@@ -51,7 +51,7 @@ jobs:
         displayName: "Install: Vcpkg"
         inputs:
           vcpkgGitCommitId: $(vcpkg.commit)
-          vcpkgArguments: "ms-gsl spdlog directxtex directxtk directxmath directx-headers catch2 glfw3 egl-registry opengl-registry"
+          vcpkgArguments: "ms-gsl spdlog directxtex directxtk directxmath directx-headers glfw3 egl-registry opengl-registry"
         env:
           VCPKG_DEFAULT_TRIPLET: $(vcpkg.target.triplet)
       - task: CMake@1
@@ -77,9 +77,11 @@ jobs:
         inputs:
           cmakeArgs: "--build --target install --preset=$(vcpkg.target.triplet)-debug"
           workingDirectory: $(Build.SourcesDirectory)
-      - powershell: |
-          ./media_test_suite.exe --success
-        workingDirectory: $(Build.BinariesDirectory)/install/bin
+      - task: VSTest@2
+        inputs:
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: '**\media0.dll'
+          searchFolder: '$(Build.BinariesDirectory)/install/bin'
 
   - job: Analysis
     dependsOn: Build
@@ -98,7 +100,7 @@ jobs:
         displayName: "Install: Vcpkg"
         inputs:
           vcpkgGitCommitId: $(vcpkg.commit)
-          vcpkgArguments: "catch2 ms-gsl spdlog directxtex directxtk directxmath directx-headers glfw3 egl-registry opengl-registry"
+          vcpkgArguments: "ms-gsl spdlog directxtex directxtk directxmath directx-headers glfw3 egl-registry opengl-registry"
         env:
           VCPKG_DEFAULT_TRIPLET: x64-windows
       - task: SonarCloudPrepare@1
@@ -130,15 +132,17 @@ jobs:
             /t:rebuild /p:platform="x64" /p:configuration="Debug"
         displayName: "Run Sonar Build Wrapper"
       # https://docs.sonarqube.org/latest/analysis/generic-test/
-      - powershell: |
-          New-Item -Type Directory -Path "$(Build.SourcesDirectory)/install" -Force
-          ./media_test_suite.exe --reporter=sonarqube --out "$(Build.SourcesDirectory)/install/sonar-test-report.xml"
-        workingDirectory: build-x64-windows/Debug
-        displayName: "Run Tests"
-      # - task: PowerShell@2
-      #   displayName: "Create XML from coverage"
-      #   inputs:
-      #     filePath: "scripts/create-coverage-xml.ps1"
+      - task: VSTest@2
+        inputs:
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: 'Debug\**.dll'
+          searchFolder: 'build-x64-windows'
+          codeCoverageEnabled: true
+          otherConsoleOptions: '/ResultsDirectory:reports'
+      - task: PowerShell@2
+        inputs:
+          filePath: "scripts/create-coverage-xml.ps1"
+        displayName: "Create XML from coverage"
       - task: SonarCloudAnalyze@1
         continueOnError: true
       - task: SonarCloudPublish@1

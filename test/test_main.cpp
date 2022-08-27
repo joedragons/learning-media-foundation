@@ -1,37 +1,21 @@
-#define CATCH_CONFIG_RUNNER
-#define CATCH_CONFIG_WCHAR
-#define UNICODE
-#include <catch2/catch.hpp>
-#include <catch2/catch_reporter_sonarqube.hpp>
+#include <CppUnitTest.h>
 
 #include <DispatcherQueue.h>
+#include <VersionHelpers.h>
 #include <experimental/coroutine>
-#include <filesystem>
-#include <gsl/gsl>
 #include <mfapi.h>
 #include <pplawait.h>
 #include <ppltasks.h>
+#include <spdlog/pattern_formatter.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
-#include <winrt/Windows.Foundation.h> // namespace winrt::Windows::Foundation
-#include <winrt/Windows.System.h>     // namespace winrt::Windows::System
-#include <winrt/base.h>
+#include <winrt/windows.foundation.h> // namespace winrt::Windows::Foundation
+#include <winrt/windows.system.h>     // namespace winrt::Windows::System
 
-// https://docs.microsoft.com/en-us/windows/win32/sysinfo/getting-the-system-version
-#include <VersionHelpers.h>
+// #include "winrt/WinRTComponent.h"
 
-#include "winrt/WinRTComponent.h"
-
-namespace fs = std::filesystem;
-
-fs::path get_asset_dir() noexcept {
-#if defined(ASSET_DIR)
-    fs::path asset_dir{ASSET_DIR};
-    if (fs::exists(asset_dir))
-        return asset_dir;
-#endif
-    return fs::current_path();
-}
+using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 bool has_env(const char* key) noexcept {
     size_t len = 0;
@@ -42,68 +26,64 @@ bool has_env(const char* key) noexcept {
     return value.empty() == false;
 }
 
-auto make_logger(const char* name, FILE* fout) noexcept(false) {
-    if (fout == stdout || fout == stderr)
-        return spdlog::stdout_logger_st(name);
-    using mutex_t = spdlog::details::console_nullmutex;
-    using sink_t = spdlog::sinks::stdout_sink_base<mutex_t>;
-    return std::make_shared<spdlog::logger>(name, std::make_shared<sink_t>(fout));
-}
-
-struct test_suite_context_t final {
-    std::vector<std::wstring_view> envs{};
+/**
+ * @brief Redirect spdlog messages to `Logger::WriteMessage`
+ */
+class vstest_sink final : public spdlog::sinks::sink {
+    std::unique_ptr<spdlog::formatter> formatter;
 
   public:
-    test_suite_context_t() {
-        winrt::init_apartment(winrt::apartment_type::multi_threaded);
-        winrt::check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
+    void log(const spdlog::details::log_msg& msg) override {
+        spdlog::memory_buf_t buf{};
+        formatter->format(msg, buf);
+        std::string txt = fmt::to_string(buf);
+        Logger::WriteMessage(txt.c_str());
     }
-    ~test_suite_context_t() {
-        MFShutdown();
-        winrt::uninit_apartment();
+    void flush() override {
+        Logger::WriteMessage(L"\n");
     }
-
-    void use_environment(wchar_t* envp[]) {
-        if (envp == nullptr)
-            return;
-        for (wchar_t** ptr = envp; (*ptr) != nullptr; ++ptr)
-            envs.emplace_back(*ptr);
+    void set_pattern(const std::string& p) override {
+        formatter = std::make_unique<spdlog::pattern_formatter>(p);
     }
-
-    void test_activation_factory() noexcept {
-        try {
-            winrt::WinRTComponent::MessageHolder holder{};
-            spdlog::error("{}", winrt::to_string(holder.Message()));
-        } catch (const winrt::hresult_error& ex) {
-            spdlog::error("{}", winrt::to_string(ex.message()));
-        }
+    void set_formatter(std::unique_ptr<spdlog::formatter> f) override {
+        formatter = std::move(f);
     }
 };
 
-test_suite_context_t context{};
+auto make_logger(const char* name, FILE* fout) noexcept(false) {
+    spdlog::sink_ptr sink0 = [fout]() -> spdlog::sink_ptr {
+        using mutex_t = spdlog::details::console_nullmutex;
+        if (fout == stdout || fout == stderr)
+            return std::make_shared<spdlog::sinks::stdout_color_sink_st>();
+        using sink_t = spdlog::sinks::stdout_sink_base<mutex_t>;
+        return std::make_shared<sink_t>(fout);
+    }();
+    spdlog::sink_ptr sink1 = std::make_shared<vstest_sink>();
+    return std::make_shared<spdlog::logger>(name, spdlog::sinks_init_list{sink0, sink1});
+}
 
-int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
+/**
+ * @see https://docs.microsoft.com/en-us/windows/win32/sysinfo/getting-the-system-version
+ */
+TEST_MODULE_INITIALIZE(Initialize) {
+    // change default logger to use vstest_sink
     auto logger = make_logger("test", stdout);
     logger->set_pattern("%T.%e [%L] %8t %v");
     logger->set_level(spdlog::level::level_enum::debug);
     spdlog::set_default_logger(logger);
-
-    context.use_environment(envp);
-
-    Catch::Session session{};
-    session.applyCommandLine(argc, argv);
-    return session.run();
-}
-
-TEST_CASE("Report Environment") {
+    // Default is `multi_threaded`...
+    winrt::init_apartment(winrt::apartment_type::single_threaded);
+    winrt::check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
     spdlog::info("C++/WinRT:");
     spdlog::info("  version: {:s}", CPPWINRT_VERSION); // WINRT_version
-    spdlog::info("Windows Media Foundation:");
-    spdlog::info("  SDK: {:X}", MF_SDK_VERSION);
-    spdlog::info("  API: {:X}", MF_API_VERSION);
-    spdlog::info("envs:");
-    for (std::wstring_view view : context.envs)
-        spdlog::debug(" - {}", winrt::to_string(view));
+    // spdlog::info("Windows Media Foundation:");
+    // spdlog::info("  SDK: {:X}", MF_SDK_VERSION);
+    // spdlog::info("  API: {:X}", MF_API_VERSION);
+}
+
+TEST_MODULE_CLEANUP(Cleanup) {
+    MFShutdown();
+    winrt::uninit_apartment();
 }
 
 using std::experimental::coroutine_handle;
@@ -112,52 +92,50 @@ using winrt::Windows::Foundation::IAsyncOperation;
 using winrt::Windows::System::DispatcherQueue;
 using winrt::Windows::System::DispatcherQueueController;
 
-struct winrt_test_case {
+class winrt_test_case : public TestClass<winrt_test_case> {
+    winrt::Windows::System::DispatcherQueueController controller = nullptr;
+    winrt::Windows::System::DispatcherQueue queue = nullptr;
+
     /// @see https://devblogs.microsoft.com/oldnewthing/20191223-00/?p=103255
-    [[nodiscard]] auto resume_on_queue(winrt::Windows::System::DispatcherQueue dispatcher) {
+    [[nodiscard]] static auto resume_on_queue(winrt::Windows::System::DispatcherQueue queue) {
         struct awaitable_t final {
-            winrt::Windows::System::DispatcherQueue dispatcher;
+            winrt::Windows::System::DispatcherQueue worker;
 
             bool await_ready() const noexcept {
-                return dispatcher == nullptr;
+                return worker == nullptr;
             }
-            bool await_suspend(coroutine_handle<void> handle) noexcept {
-                return dispatcher.TryEnqueue(handle);
+            bool await_suspend(coroutine_handle<void> task) noexcept {
+                return worker.TryEnqueue(task);
             }
             constexpr void await_resume() const noexcept {
             }
         };
-        return awaitable_t{dispatcher};
+        return awaitable_t{queue};
     }
 
     /// @throws winrt::hresult_error
-    [[nodiscard]] auto query_thread_id(winrt::Windows::System::DispatcherQueue queue) noexcept(false)
-        -> winrt::Windows::Foundation::IAsyncOperation<uint32_t> {
+    [[nodiscard]] static auto query_thread_id(winrt::Windows::System::DispatcherQueue queue) noexcept(false)
+        -> IAsyncOperation<uint32_t> {
         //co_await winrt::resume_foreground(queue);
         co_await resume_on_queue(queue);
         co_return GetCurrentThreadId();
     }
-};
 
-TEST_CASE_METHOD(winrt_test_case, "DispatcherQueue::ShutdownQueueAsync", "[winrt]") {
-    DispatcherQueueController controller = DispatcherQueueController::CreateOnDedicatedThread();
-    DispatcherQueue worker_queue = controller.DispatcherQueue();
-    REQUIRE(worker_queue);
-    IAsyncAction operation = controller.ShutdownQueueAsync();
-    REQUIRE_NOTHROW(operation.get());
-}
+  public:
+    ~winrt_test_case() noexcept = default;
 
-/// @see https://gist.github.com/kennykerr/6490e1494449927147dc18616a5e601e
-/// @todo use CreateOnDedicatedThread
-TEST_CASE_METHOD(winrt_test_case, "DispatcherQueue::TryEnqueue", "[WinRT]") {
-    DispatcherQueueController controller = winrt::Windows::System::DispatcherQueueController::CreateOnDedicatedThread();
-    auto on_return = gsl::finally([controller]() {
+    TEST_METHOD_INITIALIZE(setup) {
+        controller = DispatcherQueueController::CreateOnDedicatedThread();
+        queue = controller.DispatcherQueue();
+    }
+    TEST_METHOD_CLEANUP(teardown) {
         IAsyncAction operation = controller.ShutdownQueueAsync();
         operation.get();
-    });
-    DispatcherQueue queue = controller.DispatcherQueue();
-    REQUIRE(queue);
-    DWORD current = GetCurrentThreadId();
-    DWORD dedicated = query_thread_id(queue).get();
-    REQUIRE(current != dedicated);
-}
+    }
+
+    TEST_METHOD(test_query_thread_id) {
+        DWORD current = GetCurrentThreadId();
+        DWORD dedicated = query_thread_id(queue).get();
+        Assert::AreNotEqual<DWORD>(current, dedicated);
+    }
+};
