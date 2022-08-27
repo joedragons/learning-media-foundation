@@ -9,17 +9,19 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include <Mferror.h>
 #include <mfapi.h>
-#include <mferror.h>
 #include <mfidl.h>
-#include <winrt/Windows.System.h>
+#include <winrt/windows.system.h>
+
+#include "mf_scheduler.hpp"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 /**
  * @brief Redirect spdlog messages to `Logger::WriteMessage`
  */
-class vstest_sink : public spdlog::sinks::sink {
+class vstest_sink final : public spdlog::sinks::sink {
     std::unique_ptr<spdlog::formatter> formatter;
 
   public:
@@ -53,18 +55,14 @@ auto make_logger(const char* name, FILE* fout) noexcept(false) {
 }
 
 TEST_MODULE_INITIALIZE(Initialize) {
-    try {
-        // Default is `multi_threaded`...
-        winrt::init_apartment(winrt::apartment_type::single_threaded);
-        winrt::check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
-    } catch (const winrt::hresult_error& ex) {
-        Assert::Fail(ex.message().c_str());
-        return;
-    }
+    // change default logger to use vstest_sink
     auto logger = make_logger("test", stdout);
     logger->set_pattern("%T.%e [%L] %8t %v");
     logger->set_level(spdlog::level::level_enum::debug);
     spdlog::set_default_logger(logger);
+    // Default is `multi_threaded`...
+    winrt::init_apartment(winrt::apartment_type::single_threaded);
+    winrt::check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
 }
 
 TEST_MODULE_CLEANUP(Cleanup) {
@@ -72,28 +70,27 @@ TEST_MODULE_CLEANUP(Cleanup) {
     winrt::uninit_apartment();
 }
 
-class test_case : public ::Microsoft::VisualStudio::CppUnitTestFramework::TestClass<test_case> {
-  public:
-    TEST_CLASS_INITIALIZE(Initialize) {
-        spdlog::info("{}: {}", "test_case", "Initialize");
-    }
-    TEST_CLASS_CLEANUP(Cleanup) {
-        spdlog::info("{}: {}", "test_case", "Cleanup");
-    }
+class mf_scheduler_test_case
+    : public ::Microsoft::VisualStudio::CppUnitTestFramework::TestClass<mf_scheduler_test_case> {
+  private:
+    std::unique_ptr<mf_scheduler_t> scheduler = nullptr;
 
-  public:
+    // TEST_CLASS_INITIALIZE(Initialize) {
+    //     spdlog::info("{}: {}", "test_case", "Initialize");
+    // }
+    // TEST_CLASS_CLEANUP(Cleanup) {
+    //     spdlog::info("{}: {}", "test_case", "Cleanup");
+    // }
+
     TEST_METHOD_INITIALIZE(setup) {
-        spdlog::info("{}: {}", "test_case", "setup");
+        scheduler = std::make_unique<mf_scheduler_t>();
     }
     TEST_METHOD_CLEANUP(teardown) {
-        spdlog::info("{}: {}", "test_case", "teardown");
+        scheduler = nullptr;
     }
 
     TEST_METHOD(method0) {
-        Assert::AreEqual(0, 0);
-    }
-
-    TEST_METHOD(method1) {
-        Assert::AreEqual(10, 10);
+        std::lock_guard lck{*scheduler};
+        Assert::AreNotEqual<DWORD>(0, scheduler->handle());
     }
 };
