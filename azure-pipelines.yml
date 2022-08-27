@@ -20,71 +20,71 @@ variables:
     value: $(Build.BinariesDirectory)/vcpkg-caches
 
 jobs:
-  # - job: Build
-  #   pool:
-  #     vmImage: "windows-2022" # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
-  #   strategy:
-  #     matrix:
-  #       release_x64:
-  #         build.platform: x64
-  #         build.configuration: Release
-  #         vcpkg.target.triplet: x64-windows
-  #       debug_x64:
-  #         build.platform: x64
-  #         build.configuration: Debug
-  #         vcpkg.target.triplet: x64-windows
-  #       # debug_x86:
-  #       #   build.platform: Win32
-  #       #   build.configuration: Debug
-  #       #   vcpkg.target.triplet: x86-windows
-  #   steps:
-  #     - powershell: New-Item -Type Directory -Force ${env:VCPKG_DEFAULT_BINARY_CACHE}
-  #     # - task: PowerShell@2
-  #     #   inputs:
-  #     #     filePath: "scripts/download_mp4.ps1"
-  #     #   displayName: "Download: test MP4 files"
-  #     - task: Cache@2
-  #       inputs:
-  #         key: "2022-07 | vcpkg | $(build.platform)"
-  #         path: $(vcpkg.default.binary.cache)
-  #     - task: run-vcpkg@0
-  #       displayName: "Install: Vcpkg"
-  #       inputs:
-  #         vcpkgGitCommitId: $(vcpkg.commit)
-  #         vcpkgArguments: "ms-gsl spdlog directxtex directxtk directxmath directx-headers glfw3 egl-registry opengl-registry"
-  #       env:
-  #         VCPKG_DEFAULT_TRIPLET: $(vcpkg.target.triplet)
-  #     - task: CMake@1
-  #       displayName: "CMake: Configure/Generate"
-  #       inputs:
-  #         cmakeArgs: "--preset=$(vcpkg.target.triplet)-debug -DCMAKE_INSTALL_PREFIX:PATH=$(Build.BinariesDirectory)/install"
-  #         workingDirectory: $(Build.SourcesDirectory)
-  #     - task: VSBuild@1
-  #       displayName: "Build: VSBuild"
-  #       inputs:
-  #         solution: build-$(vcpkg.target.triplet)/learning-media-foundation.sln
-  #         platform: "$(build.platform)" # x64|Win32
-  #         configuration: "$(build.configuration)" # Debug|Release
-  #         clean: true
-  #         msbuildArchitecture: "x64"
-  #         logFileVerbosity: detailed
-  #     - task: CMake@1
-  #       displayName: "Build: CMake Preset"
-  #       inputs:
-  #         cmakeArgs: "--build --preset=$(vcpkg.target.triplet)-debug"
-  #         workingDirectory: $(Build.SourcesDirectory)
-  #     - task: CMake@1
-  #       inputs:
-  #         cmakeArgs: "--build --target install --preset=$(vcpkg.target.triplet)-debug"
-  #         workingDirectory: $(Build.SourcesDirectory)
-  #     - task: VSTest@2
-  #       inputs:
-  #         testSelector: 'testAssemblies'
-  #         testAssemblyVer2: '**\media0.dll'
-  #         searchFolder: '$(Build.BinariesDirectory)/install/bin'
+  - job: Build
+    pool:
+      vmImage: "windows-2022" # https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+    strategy:
+      matrix:
+        release_x64:
+          build.platform: x64
+          build.configuration: Release
+          vcpkg.target.triplet: x64-windows
+        debug_x64:
+          build.platform: x64
+          build.configuration: Debug
+          vcpkg.target.triplet: x64-windows
+        # debug_x86:
+        #   build.platform: Win32
+        #   build.configuration: Debug
+        #   vcpkg.target.triplet: x86-windows
+    steps:
+      - powershell: New-Item -Type Directory -Force ${env:VCPKG_DEFAULT_BINARY_CACHE}
+      # - task: PowerShell@2
+      #   inputs:
+      #     filePath: "scripts/download_mp4.ps1"
+      #   displayName: "Download: test MP4 files"
+      - task: Cache@2
+        inputs:
+          key: "2022-07 | vcpkg | $(build.platform)"
+          path: $(vcpkg.default.binary.cache)
+      - task: run-vcpkg@0
+        displayName: "Install: Vcpkg"
+        inputs:
+          vcpkgGitCommitId: $(vcpkg.commit)
+          vcpkgArguments: "ms-gsl spdlog directxtex directxtk directxmath directx-headers glfw3 egl-registry opengl-registry"
+        env:
+          VCPKG_DEFAULT_TRIPLET: $(vcpkg.target.triplet)
+      - task: CMake@1
+        displayName: "CMake: Configure/Generate"
+        inputs:
+          cmakeArgs: "--preset=$(vcpkg.target.triplet)-debug -DCMAKE_INSTALL_PREFIX:PATH=$(Build.BinariesDirectory)/install"
+          workingDirectory: $(Build.SourcesDirectory)
+      - task: VSBuild@1
+        displayName: "Build: VSBuild"
+        inputs:
+          solution: build-$(vcpkg.target.triplet)/learning-media-foundation.sln
+          platform: "$(build.platform)" # x64|Win32
+          configuration: "$(build.configuration)" # Debug|Release
+          clean: true
+          msbuildArchitecture: "x64"
+          logFileVerbosity: detailed
+      - task: CMake@1
+        displayName: "Build: CMake Preset"
+        inputs:
+          cmakeArgs: "--build --preset=$(vcpkg.target.triplet)-debug"
+          workingDirectory: $(Build.SourcesDirectory)
+      - task: CMake@1
+        inputs:
+          cmakeArgs: "--build --target install --preset=$(vcpkg.target.triplet)-debug"
+          workingDirectory: $(Build.SourcesDirectory)
+      - task: VSTest@2
+        inputs:
+          testSelector: 'testAssemblies'
+          testAssemblyVer2: '**\media0.dll'
+          searchFolder: '$(Build.BinariesDirectory)/install/bin'
 
   - job: Analysis
-    # dependsOn: Build
+    dependsOn: Build
     pool:
       vmImage: "windows-2022"
     steps:
