@@ -55,6 +55,7 @@ add_library(media0 SHARED
     ${hdrs}
     test/mf_scheduler.cpp
     test/mf_transform.cpp
+    test/test_main.cpp
     test/test_mf_scheduler.cpp
 )
 
@@ -83,6 +84,7 @@ target_compile_options(media0
 PRIVATE
     /Zc:__cplusplus
     /W4
+    /await
 )
 
 target_link_libraries(media0
