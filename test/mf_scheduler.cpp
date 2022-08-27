@@ -1,13 +1,10 @@
 #include "mf_scheduler.hpp"
 
-#include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.System.h>
-
 #include <mfapi.h>
-#include <mferror.h>
 #include <mfidl.h> // for IMFRealTimeClientEx
-#include <spdlog/spdlog.h>
 #include <synchapi.h>
+#include <winrt/windows.foundation.h>
+#include <winrt/windows.system.h>
 
 mf_scheduler_t::mf_scheduler_t() noexcept(false) {
     if (auto hr = MFAllocateWorkQueueEx(MF_STANDARD_WORKQUEUE, &queue); FAILED(hr))

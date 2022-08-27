@@ -25,19 +25,19 @@ class vstest_sink final : public spdlog::sinks::sink {
     std::unique_ptr<spdlog::formatter> formatter;
 
   public:
-    void log(const spdlog::details::log_msg& msg) final {
+    void log(const spdlog::details::log_msg& msg) override {
         spdlog::memory_buf_t buf{};
         formatter->format(msg, buf);
         std::string txt = fmt::to_string(buf);
         Logger::WriteMessage(txt.c_str());
     }
-    void flush() final {
+    void flush() override {
         Logger::WriteMessage(L"\n");
     }
-    void set_pattern(const std::string& p) final {
+    void set_pattern(const std::string& p) override {
         formatter = std::make_unique<spdlog::pattern_formatter>(p);
     }
-    void set_formatter(std::unique_ptr<spdlog::formatter> f) final {
+    void set_formatter(std::unique_ptr<spdlog::formatter> f) override {
         formatter = std::move(f);
     }
 };
@@ -74,6 +74,9 @@ class mf_scheduler_test_case
     : public ::Microsoft::VisualStudio::CppUnitTestFramework::TestClass<mf_scheduler_test_case> {
   private:
     std::unique_ptr<mf_scheduler_t> scheduler = nullptr;
+
+  public:
+    ~mf_scheduler_test_case() noexcept = default;
 
     // TEST_CLASS_INITIALIZE(Initialize) {
     //     spdlog::info("{}: {}", "test_case", "Initialize");
