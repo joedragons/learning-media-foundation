@@ -10,25 +10,40 @@ set(CMAKE_INSTALL_UCRT_LIBRARIES true)
 string(COMPARE EQUAL ${CMAKE_BUILD_TYPE} Debug CMAKE_INSTALL_DEBUG_LIBRARIES)
 
 include(GNUInstallDirs)
+include(InstallRequiredSystemLibraries)
+include(CheckIncludeFileCXX)
+include(CheckCXXCompilerFlag)
+
+# see https://docs.microsoft.com/en-us/windows/win32/medfound/media-foundation-headers-and-libraries
+check_include_file_cxx("d3d11_4.h" found_d3d11)
+check_include_file_cxx("dxgi1_6.h" found_dxgi)
+check_include_file_cxx("mfapi.h"   found_mfapi)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+# see https://github.com/microsoft/onnxruntime/tree/master/cmake
 include(winml_sdk_helpers)
 include(winml_cppwinrt)
+get_sdk(sdk_folder sdk_version)
+get_sdk_include_folder(${sdk_folder} ${sdk_version} sdk_include_folder)
 
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+find_path(VSTEST_INCLUDE_DIR NAMES "CppUnitTest.h" PATHS "${CMAKE_GENERATOR_INSTANCE}/VC/Auxiliary/VS/UnitTest/include" REQUIRED)
 find_package(Threads REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
-enable_testing()
-message(STATUS "Using commit: ${GIT_COMMIT_ID}")
 message(STATUS "Using system: ${CMAKE_SYSTEM_VERSION}")
 message(STATUS "Using compiler: ${CMAKE_CXX_COMPILER_ID}")
-message(STATUS "Windows SDK")
-message(STATUS "  ${sdk_version}") # expect CMAKE_SYSTEM_VERSION
-message(STATUS "  ${sdk_folder}")
-message(STATUS "  ${sdk_include_folder}")
 message(STATUS "Visual Studio")
 message(STATUS "  ${CMAKE_GENERATOR_INSTANCE}")
+find_path(VSTEST_INCLUDE_DIR NAMES "CppUnitTest.h" PATHS "${CMAKE_GENERATOR_INSTANCE}/VC/Auxiliary/VS/UnitTest/include" REQUIRED)
 message(STATUS "  ${VSTEST_INCLUDE_DIR}")
 
 list(APPEND hdrs
