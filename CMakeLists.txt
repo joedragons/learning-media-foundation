@@ -57,6 +57,7 @@ add_library(media0 SHARED
     test/mf_transform.cpp
     test/test_main.cpp
     test/test_mf_scheduler.cpp
+    test/test_mf_transform0.cpp
 )
 
 # <VCProjectVersion>17.0</VCProjectVersion>

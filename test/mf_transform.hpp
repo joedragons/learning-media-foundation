@@ -85,6 +85,9 @@ struct sample_processor_t {
     [[nodiscard]] HRESULT set_scale(IMFMediaType* input, uint32_t width, uint32_t height) noexcept;
     [[nodiscard]] HRESULT set_size(const RECT& rect) noexcept;
     [[nodiscard]] HRESULT set_color(const MFARGB& color) noexcept;
+
+    /// @param mirror MF_VIDEO_PROCESSOR_MIRROR::MIRROR_VERTICAL
+    /// @param rotation MF_VIDEO_PROCESSOR_ROTATION::ROTATION_NORMAL
     [[nodiscard]] HRESULT set_mirror_rotation(MF_VIDEO_PROCESSOR_MIRROR mirror,
                                               MF_VIDEO_PROCESSOR_ROTATION rotation) noexcept;
 };
