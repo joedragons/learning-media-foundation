@@ -1,6 +1,7 @@
 #include <fmt/format.h>
 #include <mfapi.h>
 #include <mferror.h>
+#include <spdlog/spdlog.h>
 #include <system_error>
 
 std::string w2mb(std::wstring_view in) noexcept(false) {

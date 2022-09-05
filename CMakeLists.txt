@@ -58,7 +58,8 @@ add_library(media0 SHARED
     test/test_main.cpp
     test/test_mf_scheduler.cpp
     test/test_mf_transform0.cpp
-    test/mta.testsettings
+    test/string.cpp
+    test/mta.runsettings
 )
 
 # <VCProjectVersion>17.0</VCProjectVersion>
@@ -66,7 +67,7 @@ add_library(media0 SHARED
 set_target_properties(media0
 PROPERTIES
     CXX_STANDARD 17
-    WINDOWS_EXPORT_ALL_SYMBOLS True
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF
     VS_GLOBAL_ProjectSubType NativeUnitTestProject
     VS_GLOBAL_VCProjectVersion 17.0
     PUBLIC_HEADER "${hdrs}"
