@@ -81,6 +81,7 @@ jobs:
         inputs:
           testSelector: 'testAssemblies'
           testAssemblyVer2: '**\media0.dll'
+          runSettingsFile: '$(Build.SourcesDirectory)/test/mta.testsettings'
           searchFolder: '$(Build.BinariesDirectory)/install/bin'
 
   - job: Analysis
@@ -136,6 +137,7 @@ jobs:
         inputs:
           testSelector: 'testAssemblies'
           testAssemblyVer2: 'Debug\**.dll'
+          runSettingsFile: '$(Build.SourcesDirectory)/test/mta.testsettings'
           searchFolder: 'build-x64-windows'
           codeCoverageEnabled: true
           otherConsoleOptions: '/ResultsDirectory:reports'

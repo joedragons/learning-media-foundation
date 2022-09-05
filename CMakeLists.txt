@@ -58,6 +58,7 @@ add_library(media0 SHARED
     test/test_main.cpp
     test/test_mf_scheduler.cpp
     test/test_mf_transform0.cpp
+    test/mta.testsettings
 )
 
 # <VCProjectVersion>17.0</VCProjectVersion>
