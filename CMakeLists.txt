@@ -92,6 +92,7 @@ target_link_libraries(media0
 PRIVATE
     WindowsApp mswsock ws2_32
     mf mfplat mfplay mfreadwrite mfuuid wmcodecdspuuid # Media Foundation SDK
+    d3d11 d3dcompiler dxgi dxguid
     fmt::fmt-header-only spdlog::spdlog_header_only
 )
 
@@ -116,3 +117,5 @@ set(CPACK_RESOURCE_FILE_LICENSE ${PROJECT_SOURCE_DIR}/LICENSE)
 set(CPACK_GENERATOR "ZIP")
 include(CPack)
 
+file(GLOB mp4_files assets/*.mp4)
+file(COPY ${mp4_files} DESTINATION ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
