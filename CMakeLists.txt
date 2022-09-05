@@ -121,3 +121,4 @@ include(CPack)
 
 file(GLOB mp4_files assets/*.mp4)
 file(COPY ${mp4_files} DESTINATION ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+install(FILES ${mp4_files} DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
