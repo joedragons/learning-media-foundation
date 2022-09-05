@@ -94,7 +94,7 @@ target_link_libraries(media0
 PRIVATE
     WindowsApp mswsock ws2_32
     mf mfplat mfplay mfreadwrite mfuuid wmcodecdspuuid # Media Foundation SDK
-    d3d11 d3dcompiler dxgi dxguid
+    d3d11 d3dcompiler dxgi dxguid evr
     fmt::fmt-header-only spdlog::spdlog_header_only
 )
 
