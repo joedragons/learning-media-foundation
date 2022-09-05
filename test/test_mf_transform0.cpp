@@ -42,7 +42,7 @@ HRESULT make_texture(ID3D11Device* device, ID3D11Texture2D** texture) {
     return device->CreateTexture2D(&desc, nullptr, texture);
 }
 
-struct video_buffer_test_case : public TestClass<video_buffer_test_case> {
+class video_buffer_test_case : public TestClass<video_buffer_test_case> {
     winrt::com_ptr<ID3D11Device> device{};
     D3D_FEATURE_LEVEL device_feature_level{};
     winrt::com_ptr<ID3D11DeviceContext> device_context{};
@@ -132,7 +132,7 @@ struct video_buffer_test_case : public TestClass<video_buffer_test_case> {
     //}
 };
 
-struct video_reader_test_case : public TestClass<video_reader_test_case> {
+class video_reader_test_case : public TestClass<video_reader_test_case> {
     winrt::com_ptr<IMFMediaSourceEx> source{};
     winrt::com_ptr<IMFMediaType> native_type{};
     winrt::com_ptr<IMFMediaType> source_type{};
