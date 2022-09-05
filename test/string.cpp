@@ -1,6 +1,7 @@
 #include <fmt/format.h>
 #include <mfapi.h>
 #include <mferror.h>
+#include <spdlog/spdlog.h>
 #include <system_error>
 
 std::string w2mb(std::wstring_view in) noexcept(false) {
@@ -223,4 +224,60 @@ std::string to_mf_string(const GUID& guid) noexcept {
     // MFVideoFormat_YVU9 // 8:4:4 Planar 9
     // MFVideoFormat_YV12 // 4:2:0 Planar 8
     // MFVideoFormat_YVYU // 4:2:2 Packed 8
+}
+
+/// @see https://docs.microsoft.com/en-us/windows/win32/medfound/video-subtype-guids
+/// @see https://stackoverflow.com/a/9681384
+void print(IMFMediaType* media_type) noexcept {
+    GUID major{};
+    media_type->GetGUID(MF_MT_MAJOR_TYPE, &major);
+    spdlog::info("media_type:");
+    spdlog::info("  {}: {}", "major", to_mf_string(major));
+
+    if (major == MFMediaType_Audio) {
+        GUID subtype{};
+        if SUCCEEDED (media_type->GetGUID(MF_MT_SUBTYPE, &subtype))
+            spdlog::info("  {}: {}", "subtype", to_mf_string(subtype));
+        return;
+    }
+    if (major == MFMediaType_Video) {
+        GUID subtype{};
+        if SUCCEEDED (media_type->GetGUID(MF_MT_SUBTYPE, &subtype))
+            spdlog::info("  {}: {}", "subtype", to_mf_string(subtype));
+
+        UINT32 value = FALSE;
+        if SUCCEEDED (media_type->GetUINT32(MF_MT_COMPRESSED, &value))
+            spdlog::info("  {}: {}", "compressed", static_cast<bool>(value));
+        if SUCCEEDED (media_type->GetUINT32(MF_MT_FIXED_SIZE_SAMPLES, &value))
+            spdlog::debug("  {}: {}", "fixed_size", static_cast<bool>(value));
+        if SUCCEEDED (media_type->GetUINT32(MF_MT_AVG_BITRATE, &value))
+            spdlog::debug("  {}: {}", "bitrate", value);
+        if SUCCEEDED (media_type->GetUINT32(MF_MT_INTERLACE_MODE, &value)) {
+            switch (value) {
+            case MFVideoInterlace_MixedInterlaceOrProgressive:
+                spdlog::debug("  {}: {}", "interlace", "MixedInterlaceOrProgressive");
+                break;
+            case MFVideoInterlace_Progressive:
+                spdlog::debug("  {}: {}", "interlace", "Progressive");
+                break;
+            case MFVideoInterlace_Unknown:
+                [[fallthrough]];
+            default:
+                spdlog::debug("  {}: {}", "interlace", "Unknown");
+                break;
+            }
+        }
+
+        UINT32 num = 0, denom = 1;
+        if SUCCEEDED (MFGetAttributeRatio(media_type, MF_MT_FRAME_RATE, &num, &denom))
+            spdlog::info("  {}: {:.1f}", "fps", static_cast<float>(num) / denom);
+        if SUCCEEDED (MFGetAttributeRatio(media_type, MF_MT_PIXEL_ASPECT_RATIO, &num, &denom))
+            spdlog::info("  {}: {:.3f}", "aspect_ratio", static_cast<float>(num) / denom);
+
+        UINT32 w = 0, h = 0;
+        if SUCCEEDED (MFGetAttributeSize(media_type, MF_MT_FRAME_SIZE, &w, &h)) {
+            spdlog::info("  {}: {}", "width", w);
+            spdlog::info("  {}: {}", "height", h);
+        }
+    }
 }

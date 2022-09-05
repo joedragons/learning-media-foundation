@@ -17,6 +17,8 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
+std::string w2mb(std::wstring_view in) noexcept(false);
+
 bool has_env(const char* key) noexcept {
     size_t len = 0;
     char buf[40]{};
@@ -72,7 +74,12 @@ TEST_MODULE_INITIALIZE(Initialize) {
     logger->set_level(spdlog::level::level_enum::debug);
     spdlog::set_default_logger(logger);
     // Default is `multi_threaded`...
-    winrt::init_apartment(winrt::apartment_type::single_threaded);
+    try {
+        winrt::init_apartment();
+    } catch (winrt::hresult_error& ex) {
+        spdlog::warn("{}: {}", __func__, w2mb(ex.message()));
+        winrt::init_apartment(winrt::apartment_type::single_threaded);
+    }
     winrt::check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
     spdlog::info("C++/WinRT:");
     spdlog::info("  version: {:s}", CPPWINRT_VERSION); // WINRT_version

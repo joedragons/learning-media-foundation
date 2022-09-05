@@ -57,6 +57,9 @@ add_library(media0 SHARED
     test/mf_transform.cpp
     test/test_main.cpp
     test/test_mf_scheduler.cpp
+    test/test_mf_transform0.cpp
+    test/string.cpp
+    test/mta.runsettings
 )
 
 # <VCProjectVersion>17.0</VCProjectVersion>
@@ -64,7 +67,7 @@ add_library(media0 SHARED
 set_target_properties(media0
 PROPERTIES
     CXX_STANDARD 17
-    WINDOWS_EXPORT_ALL_SYMBOLS True
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF
     VS_GLOBAL_ProjectSubType NativeUnitTestProject
     VS_GLOBAL_VCProjectVersion 17.0
     PUBLIC_HEADER "${hdrs}"
@@ -91,6 +94,7 @@ target_link_libraries(media0
 PRIVATE
     WindowsApp mswsock ws2_32
     mf mfplat mfplay mfreadwrite mfuuid wmcodecdspuuid # Media Foundation SDK
+    d3d11 d3dcompiler dxgi dxguid
     fmt::fmt-header-only spdlog::spdlog_header_only
 )
 
@@ -115,3 +119,6 @@ set(CPACK_RESOURCE_FILE_LICENSE ${PROJECT_SOURCE_DIR}/LICENSE)
 set(CPACK_GENERATOR "ZIP")
 include(CPack)
 
+file(GLOB mp4_files assets/*.mp4)
+file(COPY ${mp4_files} DESTINATION ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+install(FILES ${mp4_files} DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)

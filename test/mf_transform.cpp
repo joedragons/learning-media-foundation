@@ -164,7 +164,7 @@ HRESULT sample_processor_t::set_scale(IMFMediaType* input, uint32_t width, uint3
     constexpr auto istream = 0, ostream = 0;
     if (auto hr = transform->SetInputType(istream, input, 0); FAILED(hr))
         return hr;
-    RECT region{0, 0, width, height};
+    RECT region{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
     if (auto hr = control->SetDestinationRectangle(&region); FAILED(hr))
         return hr;
     try {
@@ -182,7 +182,7 @@ HRESULT sample_processor_t::set_scale(IMFMediaType* input, uint32_t width, uint3
 
 HRESULT sample_processor_t::set_mirror_rotation(MF_VIDEO_PROCESSOR_MIRROR mirror,
                                                 MF_VIDEO_PROCESSOR_ROTATION rotation) noexcept {
-    if (auto hr = control->SetMirror(MF_VIDEO_PROCESSOR_MIRROR::MIRROR_VERTICAL); FAILED(hr))
+    if (auto hr = control->SetMirror(mirror); FAILED(hr))
         return hr;
-    return control->SetRotation(MF_VIDEO_PROCESSOR_ROTATION::ROTATION_NORMAL);
+    return control->SetRotation(rotation);
 }
